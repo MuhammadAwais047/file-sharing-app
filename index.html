@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beam — serverless P2P file sharing</title>
+  <meta name="description" content="Send files straight to one person over a peer-to-peer WebRTC connection. No server stores your file — just two browsers and a pair of codes." />
+  <meta property="og:title" content="Beam — serverless P2P file sharing" />
+  <meta property="og:description" content="Send files straight to one person over WebRTC. No server, no account." />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#0c0f14" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%A1%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to app</a>
+
+  <header class="top">
+    <div class="top-inner">
+      <a class="logo" href="#">📡 Beam</a>
+      <span class="badge">peer-to-peer · nothing touches a server</span>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="intro">
+      <h1>Beam a file<br><span class="grad">straight</span> to one person.</h1>
+      <p>Pick a file, swap two short codes with your friend, and the file travels browser-to-browser over an encrypted WebRTC channel. There is no upload, no link, no middleman.</p>
+    </section>
+
+    <div class="panels">
+      <!-- ============ SEND ============ -->
+      <section class="panel" aria-labelledby="send-h">
+        <h2 id="send-h">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 11 18-7-7 18-2.5-7.5z"/></svg>
+          Send
+        </h2>
+
+        <div class="step" id="s1">
+          <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Choose or drop a file">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 16v3a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 20 19v-3"/></svg>
+            <b>Drop a file here</b>
+            <span>or click to browse — it never leaves this device until you send it</span>
+          </div>
+          <input id="file-input" type="file" hidden />
+          <p id="picked" class="picked" hidden></p>
+          <button id="make-offer" class="btn btn-primary btn-block" type="button" disabled>Create invite code</button>
+        </div>
+
+        <div class="step" id="s2" hidden>
+          <p class="step-label">1 · Send this invite to your friend (chat, email, carrier pigeon…)</p>
+          <textarea id="offer-box" readonly rows="4" aria-label="Invite code"></textarea>
+          <button id="copy-offer" class="btn btn-ghost btn-sm" type="button">Copy invite</button>
+
+          <p class="step-label">2 · Paste their reply code here</p>
+          <textarea id="answer-in" rows="4" placeholder="Paste the reply code…" aria-label="Reply code"></textarea>
+          <button id="accept-answer" class="btn btn-primary btn-block" type="button">Connect &amp; send</button>
+          <p id="s2-status" class="status" role="status"></p>
+          <button id="s2-cancel" class="btn btn-ghost btn-sm btn-block" type="button">Cancel</button>
+        </div>
+
+        <div class="step" id="s3" hidden>
+          <p class="step-label" id="send-file-name"></p>
+          <div class="bar"><span id="send-bar"></span></div>
+          <div class="bar-meta">
+            <span id="send-pct">0%</span>
+            <span id="send-speed"></span>
+          </div>
+          <p id="s3-status" class="status" role="status">Connecting…</p>
+          <button id="s3-cancel" class="btn btn-ghost btn-sm btn-block" type="button" hidden>Cancel</button>
+          <button id="send-again" class="btn btn-primary btn-block" type="button" hidden>Send another file</button>
+        </div>
+      </section>
+
+      <!-- ============ RECEIVE ============ -->
+      <section class="panel" aria-labelledby="recv-h">
+        <h2 id="recv-h">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></svg>
+          Receive
+        </h2>
+
+        <div class="step" id="r1">
+          <p class="step-label">Paste the invite code you received</p>
+          <textarea id="offer-in" rows="6" placeholder="Paste the invite code…" aria-label="Invite code"></textarea>
+          <button id="join" class="btn btn-primary btn-block" type="button">Join beam</button>
+          <p id="r1-status" class="status" role="status"></p>
+        </div>
+
+        <div class="step" id="r2" hidden>
+          <p class="step-label">Send this reply back to the sender</p>
+          <textarea id="answer-box" readonly rows="4" aria-label="Reply code"></textarea>
+          <button id="copy-answer" class="btn btn-ghost btn-sm" type="button">Copy reply</button>
+          <p id="r2-status" class="status" role="status">Waiting for the sender to connect…</p>
+        </div>
+
+        <div class="step" id="r3" hidden>
+          <p class="step-label" id="recv-file-name">Incoming…</p>
+          <div class="bar"><span id="recv-bar"></span></div>
+          <div class="bar-meta">
+            <span id="recv-pct">0%</span>
+            <span id="recv-speed"></span>
+          </div>
+          <p id="r3-status" class="status" role="status"></p>
+          <button id="save-file" class="btn btn-primary btn-block" type="button" hidden>Save file again</button>
+          <button id="recv-again" class="btn btn-ghost btn-sm btn-block" type="button" hidden>Receive another file</button>
+        </div>
+      </section>
+    </div>
+
+    <section class="how" aria-labelledby="how-h">
+      <h2 id="how-h">How it works</h2>
+      <ol>
+        <li><b>Sender</b> picks a file and gets an <b>invite code</b> — a description of their browser's network route.</li>
+        <li><b>Receiver</b> pastes it and sends back a <b>reply code</b>. These two codes let the browsers find each other directly.</li>
+        <li>The file streams through an <b>encrypted WebRTC channel</b> in 16 KB chunks. No server ever sees the file — if the two peers can't find a direct route, the connection simply fails rather than falling back to a relay.</li>
+      </ol>
+      <p class="how-note">Works best between browsers on the same Wi-Fi or when both sides have permissive networks. Codes are long — that's the whole security model: whoever holds both codes holds the session.</p>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>A serverless WebRTC demo by
+      <a href="https://github.com/MuhammadAwais047" target="_blank" rel="noopener noreferrer">Muhammad Awais</a> ·
+      <a href="https://github.com/MuhammadAwais047/file-sharing-app" target="_blank" rel="noopener noreferrer">Source</a></p>
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
