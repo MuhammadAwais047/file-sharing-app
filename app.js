@@ -16,6 +16,12 @@
   const BUF_LOW = 128 * 1024;
   const ICE_CONFIG = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
   const EOF = "__beam_eof__";
+  const MAX_RECV_BYTES = 2 * 1024 * 1024 * 1024; // hard 2 GB cap on the receive buffer
+
+  const fingerprintOf = (sdp) => {
+    const m = /a=fingerprint:sha-256\s+([0-9A-Fa-f:]+)/i.exec(sdp || "");
+    return m ? m[1].toUpperCase() : "";
+  };
 
   const fmtBytes = (n) => {
     if (n < 1024) return `${n} B`;
@@ -163,6 +169,11 @@
     try {
       setStatus("#s2-status", "Connecting…");
       await sendPc.setRemoteDescription(decodeCode(raw));
+      const fp = fingerprintOf(sendPc.remoteDescription?.sdp);
+      if (fp) {
+        $("#send-fp").textContent = fp;
+        $("#send-fp-line").hidden = false;
+      }
       hideAll("#s2");
       show("#s3");
       $("#send-file-name").textContent = `${sendFile.name} · ${fmtBytes(sendFile.size)}`;
@@ -239,6 +250,8 @@
     $("#send-bar").style.width = "0%";
     $("#send-pct").textContent = "0%";
     $("#send-speed").textContent = "";
+    $("#send-fp").textContent = "";
+    $("#send-fp-line").hidden = true;
     setStatus("#s2-status", "");
     setStatus("#s3-status", "");
     hideAll("#s2", "#s3");
@@ -300,6 +313,28 @@
     }
   });
 
+  const abortReceive = (msg) => {
+    recvDone = true;
+    recvChunks = [];
+    recvBytes = 0;
+    if (recvDc) {
+      recvDc.onmessage = null;
+      recvDc.onerror = null;
+      try { recvDc.close(); } catch { /* already closed */ }
+    }
+    if (recvBlobUrl) {
+      URL.revokeObjectURL(recvBlobUrl);
+      recvBlobUrl = null;
+    }
+    $("#recv-bar").style.width = "0%";
+    $("#recv-pct").textContent = "0%";
+    $("#recv-speed").textContent = "";
+    $("#save-file").hidden = true;
+    $("#recv-again").hidden = false;
+    setStatus("#r3-status", msg, "err");
+    toast(msg);
+  };
+
   const onRecvMessage = (e) => {
     const data = e.data;
     if (typeof data === "string") {
@@ -310,11 +345,18 @@
         } catch {
           return;
         }
+        if (!recvMeta || !Number.isFinite(recvMeta.size) || recvMeta.size < 0 || recvMeta.size > MAX_RECV_BYTES) {
+          abortReceive("That file exceeds the 2 GB receive limit — the transfer was stopped.");
+          return;
+        }
         recvChunks = [];
         recvBytes = 0;
         recvStart = Date.now();
         recvLastTick = recvStart;
         recvLastBytes = 0;
+        const fp = fingerprintOf(recvPc?.remoteDescription?.sdp);
+        $("#recv-fp").textContent = fp;
+        $("#recv-fp-line").hidden = !fp;
         hideAll("#r2");
         show("#r3");
         $("#recv-file-name").textContent = `${recvMeta.name} · ${fmtBytes(recvMeta.size)}`;
@@ -325,8 +367,14 @@
       }
       return;
     }
+    if (recvDone) return;
+    const len = data.byteLength || data.size || 0;
+    if (recvBytes + len > MAX_RECV_BYTES) {
+      abortReceive("This transfer went over the 2 GB receive limit — it was stopped.");
+      return;
+    }
     recvChunks.push(data);
-    recvBytes += data.byteLength || data.size || 0;
+    recvBytes += len;
     const pct = recvMeta ? Math.min(100, Math.floor((recvBytes / recvMeta.size) * 100)) : 0;
     $("#recv-bar").style.width = `${pct}%`;
     $("#recv-pct").textContent = `${pct}%`;
@@ -386,6 +434,8 @@
     $("#recv-bar").style.width = "0%";
     $("#recv-pct").textContent = "0%";
     $("#recv-speed").textContent = "";
+    $("#recv-fp").textContent = "";
+    $("#recv-fp-line").hidden = true;
     setStatus("#r1-status", "");
     $("#r3-status").textContent = "";
     $("#r3-status").className = "status";

@@ -77,6 +77,7 @@ textarea { font: inherit; }
 
 .step { display: flex; flex-direction: column; gap: 12px; }
 .step-label { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+.fp { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 400; word-break: break-all; }
 
 /* dropzone */
 .dropzone {
